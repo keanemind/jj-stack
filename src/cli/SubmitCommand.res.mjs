@@ -17,8 +17,8 @@ function analyzeSubmissionGraph(prim0, prim1) {
   return SubmitJs.analyzeSubmissionGraph(prim0, prim1);
 }
 
-function createSubmissionPlan(prim0, prim1, prim2, prim3, prim4) {
-  return SubmitJs.createSubmissionPlan(prim0, prim1, prim2, prim3, prim4);
+function createSubmissionPlan(prim0, prim1, prim2, prim3, prim4, prim5) {
+  return SubmitJs.createSubmissionPlan(prim0, prim1, prim2, prim3, prim4, prim5);
 }
 
 function createNarrowedSegments(prim0, prim1) {
@@ -73,7 +73,7 @@ function createExecutionCallbacks() {
         };
 }
 
-async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote) {
+async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote, template) {
   console.log("🔍 Analyzing submission requirements for: " + bookmarkName);
   var analysis = SubmitJs.analyzeSubmissionGraph(changeGraph, bookmarkName);
   console.log("✅ Found stack with " + analysis.relevantSegments.length.toString() + " segment(s)");
@@ -82,7 +82,7 @@ async function runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote)
   var githubConfig = await SubmitJs.getGitHubConfig(jjFunctions, remote);
   console.log("📋 Creating submission plan...");
   var narrowedSegments = SubmitJs.createNarrowedSegments(resolvedBookmarks, analysis);
-  var plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, remote, undefined);
+  var plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, remote, undefined, template);
   console.log("📍 GitHub repository: " + plan.repoInfo.owner + "/" + plan.repoInfo.repo);
   resolvedBookmarks.forEach(function (bookmark) {
         console.log(formatBookmarkStatus(bookmark, plan.existingPRs));
@@ -156,6 +156,13 @@ async function submitCommand(jjFunctions, bookmarkName, options) {
   } else {
     remote = Js_exn.raiseError("Options with remote are required");
   }
+  var template;
+  if (options !== undefined) {
+    var template$1 = options.template;
+    template = template$1 !== undefined ? Caml_option.valFromOption(template$1) : undefined;
+  } else {
+    template = undefined;
+  }
   if (dryRun) {
     console.log("🧪 DRY RUN: Simulating submission of bookmark: " + bookmarkName);
   } else {
@@ -179,7 +186,7 @@ async function submitCommand(jjFunctions, bookmarkName, options) {
     console.log("ℹ️  Found " + changeGraph.excludedBookmarkCount.toString() + " bookmarks on merge commits or their descendants, ignoring.\n   jj-stack works with linear stacking workflows. Consider using 'jj rebase' to linearize your history before creating stacked pull requests.");
     console.log();
   }
-  return await runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote);
+  return await runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote, template);
 }
 
 export {
