@@ -1,4 +1,6 @@
 import { Octokit } from "octokit";
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { getGitHubAuth } from "./auth.js";
 import type {
   Bookmark,
@@ -59,7 +61,7 @@ export interface SubmissionPlan {
   bookmarksNeedingPR: {
     bookmark: Bookmark;
     baseBranchOptions: string[];
-    prContent: { title: string };
+    prContent: { title: string, body?: string };
   }[];
   bookmarksNeedingPRBaseUpdate: {
     bookmark: Bookmark;
@@ -269,6 +271,18 @@ export function generatePRTitle(
   return segment.changes[0].descriptionFirstLine || bookmarkName;
 }
 
+
+/**
+ * Grab the provided template
+ */
+export function getTemplate(root: string, template: string): string | undefined {
+  try {
+    return fs.readFileSync(path.join(root, template), {encoding: "utf8"});
+  } catch (e) {
+    return undefined;
+  }
+}
+
 /**
  * Create a new PR
  */
@@ -279,11 +293,13 @@ export async function createPR(
   bookmarkName: string,
   baseBranch: string,
   title: string,
+  body?: string,
 ): Promise<PullRequestItem> {
   const result = await octokit.rest.pulls.create({
     owner,
     repo,
     title,
+    body,
     head: bookmarkName,
     base: baseBranch,
   });
@@ -495,10 +511,12 @@ export async function createSubmissionPlan(
   segments: NarrowedBookmarkSegment[],
   remoteName: string,
   callbacks?: PlanCallbacks,
+  template?: string,
 ): Promise<SubmissionPlan> {
   try {
     const bookmarksToSubmit = segments.map((s) => s.bookmark);
     const targetBookmark = bookmarksToSubmit[bookmarksToSubmit.length - 1].name;
+    const root = await jj.getRoot();
 
     callbacks?.onCheckingPRs?.(bookmarksToSubmit);
     const existingPRs = await getExistingPRs(
@@ -517,6 +535,13 @@ export async function createSubmissionPlan(
       segments,
       defaultBranch,
     );
+
+    // Load the PR template, if any
+    let body: string | undefined;
+    if (template != null) {
+      body = getTemplate(root, template);
+    }
+
 
     // Determine what actions are needed
     const bookmarksNeedingPush: Bookmark[] = [];
@@ -537,7 +562,7 @@ export async function createSubmissionPlan(
             segments,
             defaultBranch,
           ),
-          prContent: { title: generatePRTitle(bookmark.name, segments) },
+          prContent: { title: generatePRTitle(bookmark.name, segments), body },
         });
       }
     }
@@ -661,6 +686,7 @@ export async function executeSubmissionPlan(
           bookmark.name,
           baseBranchOptions[0],
           prContent.title,
+          prContent.body,
         );
 
         callbacks?.onPRCompleted?.(bookmark, pr);
