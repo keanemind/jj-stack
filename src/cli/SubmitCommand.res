@@ -97,6 +97,7 @@ external createSubmissionPlan: (
   array<JJTypes.narrowedBookmarkSegment>,
   string,
   option<'planCallbacks>,
+  option<string>,
 ) => promise<submissionPlan> = "createSubmissionPlan"
 
 @module("../lib/submit.js")
@@ -117,7 +118,7 @@ external executeSubmissionPlan: (
 external getGitHubConfig: (JJTypes.jjFunctions, string) => promise<'githubConfig> =
   "getGitHubConfig"
 
-type submitOptions = {dryRun?: bool, remote?: string}
+type submitOptions = {dryRun?: bool, remote?: string, template?: option<string>}
 
 /**
  * Format bookmark status for display
@@ -189,6 +190,7 @@ let runSubmit = async (
   changeGraph: JJTypes.changeGraph,
   dryRun: bool,
   remote: string,
+  template: option<string>,
 ) => {
   // PHASE 1: Analyze the submission graph
   Console.log(`🔍 Analyzing submission requirements for: ${bookmarkName}`)
@@ -206,7 +208,7 @@ let runSubmit = async (
 
   Console.log(`📋 Creating submission plan...`)
   let narrowedSegments = createNarrowedSegments(resolvedBookmarks, analysis)
-  let plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, remote, None)
+  let plan = await createSubmissionPlan(jjFunctions, githubConfig, narrowedSegments, remote, None, template)
 
   // Display plan summary
   Console.log(`📍 GitHub repository: ${plan.repoInfo.owner}/${plan.repoInfo.repo}`)
@@ -317,6 +319,14 @@ let submitCommand = async (
     }
   | None => Js.Exn.raiseError("Options with remote are required")
   }
+  let template = switch options {
+  | Some({?template}) =>
+    switch template {
+    | Some(t) => t
+    | None => None
+    }
+  | None => None
+  }
 
   if dryRun {
     Console.log(`🧪 DRY RUN: Simulating submission of bookmark: ${bookmarkName}`)
@@ -346,5 +356,5 @@ let submitCommand = async (
     Console.log() // add space after the message
   }
 
-  await runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote)
+  await runSubmit(jjFunctions, bookmarkName, changeGraph, dryRun, remote, template)
 }

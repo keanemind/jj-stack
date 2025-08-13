@@ -21,6 +21,7 @@ export type JjFunctions = {
   ) => Promise<LogEntry[]>;
   getGitRemoteList: () => Promise<Array<{ name: string; url: string }>>;
   getDefaultBranch: () => Promise<string>;
+  getRoot: () => Promise<string>;
   pushBookmark: (bookmarkName: string, remote: string) => Promise<void>;
 };
 
@@ -60,7 +61,32 @@ export function createJjFunctions(config: JjConfig): JjFunctions {
     getDefaultBranch: () => getDefaultBranch(config),
     pushBookmark: (bookmarkName, remote) =>
       pushBookmark(config, bookmarkName, remote),
+    getRoot: () => getRoot(config),
   };
+}
+
+/**
+ * Returns the root of the repository
+ */
+function getRoot(config: JjConfig): Promise<string> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      config.binaryPath,
+      ["root"],
+      (error, stdout, stderr) => {
+        if (error) {
+          logger.error(
+            `Failed to find repo root: ${(error as Error).toString()}`,
+          );
+          return reject(error as Error);
+        }
+        if (stderr) {
+          logger.warn(`Got stderr response on jj root: ${stderr}`);
+        }
+        resolve(stdout.trim());
+      },
+    );
+  });
 }
 
 /**
