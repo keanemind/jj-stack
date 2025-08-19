@@ -137,7 +137,7 @@ function getMyBookmarks(config: JjConfig): Promise<Bookmark[]> {
           try {
             const bookmark = v.parse(BookmarkOutputSchema, JSON.parse(line));
             const hasMatchingRemote = bookmark.remoteBookmarks.some((remote) =>
-              remote.startsWith(bookmark.name + "@"),
+              remote.startsWith(bookmark.name + "@") && remote !== bookmark.name + "@git",
             );
 
             const existingBookmark = bookmarks.get(bookmark.name);
