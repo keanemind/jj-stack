@@ -31,6 +31,7 @@ COMMANDS:
   submit <bookmark>     Submit a bookmark and all downstack bookmarks as PRs
     --dry-run           Show what would be done without making changes
     --remote <name>     Use the specified Git remote (must be a GitHub remote)
+    --template <name>   Use the specified PR submission template
 
   auth test             Test GitHub authentication
   auth help             Show authentication help
@@ -130,6 +131,7 @@ let main = async () => {
       "options": {
         "remote": {"type": "string"},
         "dry-run": {"type": "boolean", "default": false},
+        "template": {"type": "string"},
         "help": {"type": "boolean", "short": "h", "default": false},
       },
       "allowPositionals": true,
@@ -155,6 +157,14 @@ let main = async () => {
       }
     | None => false
     }
+    let templateOpt = switch Js.Dict.get(parsed["values"], "template") {
+    | Some(template) =>
+      switch template {
+      | String(t) => Some(t)
+      | _ => Exn.raiseError("--template was used as a boolean")
+      }
+    | None => None
+    }
     let isHelp = switch Js.Dict.get(parsed["values"], "help") {
     | Some(help) =>
       switch help {
@@ -173,7 +183,7 @@ let main = async () => {
       if isHelp {
         Console.log(help)
       } else {
-        await AnalyzeCommand.analyzeCommand(jjFunctions, ~remote=remoteName, ~dryRun=isDryRun)
+        await AnalyzeCommand.analyzeCommand(jjFunctions, ~remote=remoteName, ~dryRun=isDryRun, ~template=templateOpt)
       }
     | Some(cmd) =>
       switch cmd {
@@ -188,17 +198,17 @@ let main = async () => {
         }
       | "submit" =>
         if isHelp {
-          Console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]")
+          Console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>] [--template <name>]")
         } else {
           switch subArg {
           | Some(bookmarkName) =>
             await SubmitCommand.submitCommand(
               jjFunctions,
               bookmarkName,
-              ~options={dryRun: isDryRun, remote: remoteName},
+              ~options={dryRun: isDryRun, remote: remoteName, template: templateOpt},
             )
           | None => {
-              Console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]")
+              Console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>] [--template <name>]")
               exit(1)
             }
           }
