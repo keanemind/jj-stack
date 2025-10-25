@@ -7,6 +7,7 @@ import * as Js_dict from "rescript/lib/es6/js_dict.js";
 import * as Nodeutil from "node:util";
 import * as Belt_Array from "rescript/lib/es6/belt_Array.js";
 import * as AuthCommand from "./AuthCommand.res.mjs";
+import * as Caml_option from "rescript/lib/es6/caml_option.js";
 import * as SubmitCommand from "./SubmitCommand.res.mjs";
 import * as AnalyzeCommand from "./AnalyzeCommand.res.mjs";
 import * as JjUtilsJs from "../lib/jjUtils.js";
@@ -22,7 +23,7 @@ function isGitHubRemote(prim) {
   return JjUtilsJs.isGitHubRemote(prim);
 }
 
-var help = "🔧 jj-stack - Jujutsu Git workflow automation\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nUSAGE:\n  jj-stack [COMMAND] [OPTIONS]\n\nCOMMANDS:\n  submit <bookmark>     Submit a bookmark and all downstack bookmarks as PRs\n    --dry-run           Show what would be done without making changes\n    --remote <name>     Use the specified Git remote (must be a GitHub remote)\n\n  auth test             Test GitHub authentication\n  auth help             Show authentication help\n\n  help, --help, -h      Show this help message\n\nDEFAULT BEHAVIOR:\n  Running jj-stack without arguments analyzes and displays the current\n  graph of stacked bookmarks.\n\nEXAMPLES:\n  jj-stack                        # Show change graph\n  jj-stack submit feature-branch  # Submit feature-branch and downstack as PRs\n  jj-stack submit feature-branch --dry-run  # Preview what would be done\n  jj-stack submit feature-branch --remote upstream  # Use a specific remote\n  jj-stack auth test              # Test GitHub authentication\n\nFor more information, visit: https://github.com/keanemind/jj-stack\n";
+var help = "🔧 jj-stack - Jujutsu Git workflow automation\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\nUSAGE:\n  jj-stack [COMMAND] [OPTIONS]\n\nCOMMANDS:\n  submit <bookmark>     Submit a bookmark and all downstack bookmarks as PRs\n    --dry-run           Show what would be done without making changes\n    --remote <name>     Use the specified Git remote (must be a GitHub remote)\n    --template <name>   Use the specified PR submission template\n\n  auth test             Test GitHub authentication\n  auth help             Show authentication help\n\n  help, --help, -h      Show this help message\n\nDEFAULT BEHAVIOR:\n  Running jj-stack without arguments analyzes and displays the current\n  graph of stacked bookmarks.\n\nEXAMPLES:\n  jj-stack                        # Show change graph\n  jj-stack submit feature-branch  # Submit feature-branch and downstack as PRs\n  jj-stack submit feature-branch --dry-run  # Preview what would be done\n  jj-stack submit feature-branch --remote upstream  # Use a specific remote\n  jj-stack auth test              # Test GitHub authentication\n\nFor more information, visit: https://github.com/keanemind/jj-stack\n";
 
 async function resolveRemoteName(remotes, userSpecified) {
   if (userSpecified !== undefined) {
@@ -93,6 +94,9 @@ async function main() {
               type: "boolean",
               default: false
             },
+            template: {
+              type: "string"
+            },
             help: {
               type: "boolean",
               short: "h",
@@ -112,6 +116,10 @@ async function main() {
     var isDryRun = dryRun !== undefined ? (
         typeof dryRun === "string" ? Js_exn.raiseError("--dry-run was used as a string") : dryRun
       ) : false;
+    var template = Js_dict.get(parsed.values, "template");
+    var templateOpt = template !== undefined ? (
+        typeof template === "string" ? template : Js_exn.raiseError("--template was used as a boolean")
+      ) : undefined;
     var help$1 = Js_dict.get(parsed.values, "help");
     var isHelp = help$1 !== undefined ? (
         typeof help$1 === "string" ? Js_exn.raiseError("--help was used as a string") : help$1
@@ -123,7 +131,7 @@ async function main() {
         console.log(help);
         return ;
       } else {
-        return await AnalyzeCommand.analyzeCommand(jjFunctions, remoteName, isDryRun);
+        return await AnalyzeCommand.analyzeCommand(jjFunctions, remoteName, isDryRun, templateOpt);
       }
     }
     switch (command) {
@@ -138,15 +146,16 @@ async function main() {
           return ;
       case "submit" :
           if (isHelp) {
-            console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]");
+            console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>] [--template <name>]");
             return ;
           } else if (subArg !== undefined) {
             return await SubmitCommand.submitCommand(jjFunctions, subArg, {
                         dryRun: isDryRun,
-                        remote: remoteName
+                        remote: remoteName,
+                        template: Caml_option.some(templateOpt)
                       });
           } else {
-            console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>]");
+            console.error("Usage: jj-stack submit <bookmark-name> [--dry-run] [--remote <name>] [--template <name>]");
             process.exit(1);
             return ;
           }

@@ -121,6 +121,7 @@ suite("stack detection", () => {
         ]),
       getDefaultBranch: () => Promise.resolve("main"),
       pushBookmark: () => Promise.resolve(),
+      getRoot: () => Promise.resolve("."),
     };
 
     const result = await buildChangeGraph(mockJj);
@@ -455,6 +456,7 @@ suite("stack detection", () => {
         ]),
       getDefaultBranch: () => Promise.resolve("main"),
       pushBookmark: () => Promise.resolve(),
+      getRoot: () => Promise.resolve("."),
     };
 
     const result = await buildChangeGraph(mockJj);
